@@ -6,21 +6,33 @@
     <title>Raja Game Analyzer Pro</title>
     <style>
         body { background: #0f172a; color: #f8fafc; font-family: sans-serif; padding: 15px; margin: 0; text-align: center; }
-        .card { background: #1e293b; padding: 15px; border-radius: 12px; margin-top: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .card { background: #1e293b; padding: 15px; border-radius: 12px; margin-top: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .live-box { background: #334155; padding: 10px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; display: flex; justify-content: space-between; }
+        .prediction-card { background: #0284c7; padding: 12px; border-radius: 8px; margin-top: 12px; font-size: 18px; font-weight: bold; }
         .btn-group { display: flex; gap: 10px; margin-top: 10px; }
-        button { flex: 1; padding: 15px; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; color: white; cursor: pointer; }
+        button { flex: 1; padding: 14px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; color: white; cursor: pointer; }
         .btn-big { background: #3b82f6; }
         .btn-small { background: #ef4444; }
         button:active { opacity: 0.8; }
-        .stats-box { display: flex; justify-content: space-around; margin-top: 15px; font-size: 16px; }
-        .history-list { max-height: 150px; overflow-y: auto; margin-top: 15px; text-align: left; font-size: 14px; background: #0f172a; padding: 10px; border-radius: 6px; }
+        .stats-box { display: flex; justify-content: space-around; margin-top: 12px; font-size: 14px; color: #94a3b8; }
+        .history-list { max-height: 130px; overflow-y: auto; margin-top: 12px; text-align: left; font-size: 13px; background: #0f172a; padding: 8px; border-radius: 6px; }
         .history-item { padding: 4px 0; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; }
-        .clear-btn { background: #64748b; margin-top: 10px; width: 100%; padding: 10px; }
+        .clear-btn { background: #64748b; margin-top: 10px; width: 100%; padding: 8px; font-size: 14px; }
     </style>
 </head>
 <body>
     <h2>Raja Analyzer Pro</h2>
+    
     <div class="card">
+        <div class="live-box">
+            <span>Period: <strong id="periodNum">Loading...</strong></span>
+            <span>Timer: <strong id="timer">00:30</strong></span>
+        </div>
+
+        <div class="prediction-card">
+            Next Prediction: <span id="predictionText">Analyzing...</span>
+        </div>
+
         <h3>Record Round Outcome</h3>
         <div class="btn-group">
             <button class="btn-big" onclick="recordOutcome('BIG')">BIG</button>
@@ -33,13 +45,49 @@
             <div>Small: <span id="smallCount">0 (0%)</span></div>
         </div>
 
-        <button class="clear-btn" onclick="clearHistory()">Reset History</button>
-
         <div class="history-list" id="historyList"></div>
+
+        <button class="clear-btn" onclick="clearHistory()">Reset History</button>
     </div>
 
     <script>
         let historyData = JSON.parse(localStorage.getItem('game_history')) || [];
+
+        // Timer & Period Generator Simulation
+        function runTimer() {
+            let now = new Date();
+            let seconds = now.getSeconds();
+            let remaining = 30 - (seconds % 30);
+            
+            let timeFormatted = `00:${remaining < 10 ? '0' : ''}${remaining}`;
+            document.getElementById('timer').innerText = timeFormatted;
+
+            // Generate a dummy active period based on time minutes/seconds
+            let periodBase = now.getFullYear().toString() + 
+                             String(now.getMonth() + 1).padStart(2, '0') + 
+                             String(now.getDate()).padStart(2, '0') + 
+                             String(Math.floor((now.getHours() * 60 + now.getMinutes()) * 2 + now.getSeconds() / 30));
+            
+            document.getElementById('periodNum').innerText = periodBase;
+        }
+
+        setInterval(runTimer, 1000);
+
+        function calculatePrediction() {
+            if (historyData.length < 3) {
+                document.getElementById('predictionText').innerText = "Need 3+ entries";
+                return;
+            }
+            // Simple trend analysis based on last 3 inputs
+            let lastThree = historyData.slice(-3);
+            let bigs = lastThree.filter(x => x === 'BIG').length;
+            
+            // Pattern logic prediction
+            let prediction = bigs >= 2 ? 'SMALL' : 'BIG';
+            let predElement = document.getElementById('predictionText');
+            predElement.innerText = prediction;
+            predElement.style.color = prediction === 'BIG' ? '#93c5fd' : '#fca5a5';
+        }
 
         function updateUI() {
             let total = historyData.length;
@@ -51,10 +99,12 @@
             document.getElementById('smallCount').innerText = `${small} (${total ? ((small/total)*100).toFixed(1) : 0}%)`;
 
             let listHTML = '';
-            historyData.slice(-10).reverse().forEach((item, index) => {
-                listHTML += `<div class="history-item"><span>Round #${total - index}</span> <strong style="color: ${item === 'BIG' ? '#3b82f6' : '#ef4444'}">${item}</strong></div>`;
+            historyData.slice(-8).reverse().forEach((item, index) => {
+                listHTML += `<div class="history-item"><span>Entry #${total - index}</span> <strong style="color: ${item === 'BIG' ? '#3b82f6' : '#ef4444'}">${item}</strong></div>`;
             });
             document.getElementById('historyList').innerHTML = listHTML;
+
+            calculatePrediction();
         }
 
         function recordOutcome(type) {
@@ -64,7 +114,7 @@
         }
 
         function clearHistory() {
-            if(confirm("Saari history delete karni hai?")) {
+            if(confirm("Reset all history?")) {
                 historyData = [];
                 localStorage.removeItem('game_history');
                 updateUI();
